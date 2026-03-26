@@ -1,0 +1,34 @@
+name: Provider Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Run Codex against custom Responses endpoint
+        id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.PROVIDER_API_KEY }}
+          responses-api-endpoint: https://sub.jlypx.de/v1/responses
+          model: gpt-5.4-mini
+          sandbox: read-only
+          prompt: |
+            Reply with exactly: pong
+
+      - name: Assert final message
+        shell: bash
+        env:
+          FINAL_MESSAGE: ${{ steps.run_codex.outputs.final-message }}
+        run: |
+          printf 'Final message: %s\n' "$FINAL_MESSAGE"
+          test "$FINAL_MESSAGE" = "pong"
