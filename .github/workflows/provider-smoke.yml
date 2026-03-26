@@ -14,11 +14,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      - name: Resolve expected latest release tag
+      - name: Resolve expected latest git tag
         id: expected
         shell: bash
         run: |
-          tag="$(curl -fsSL https://api.github.com/repos/openai/codex-action/releases/latest | jq -r .tag_name)"
+          tag="$(
+            git ls-remote --tags --refs https://github.com/openai/codex-action.git 'v*' \
+              | awk -F/ '{print $3}' \
+              | sort -V \
+              | tail -n1
+          )"
           printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
 
       - name: Run Codex against custom Responses endpoint
@@ -31,7 +36,7 @@ jobs:
           sandbox: read-only
           codex-args: '["-c", "web_search=\"live\""]'
           prompt: |
-            Search the web for the latest GitHub release tag of openai/codex-action.
+            Search the web for the latest git tag in the openai/codex-action GitHub repository.
             Reply with exactly the tag text and nothing else.
 
       - name: Assert final message
