@@ -1,4 +1,4 @@
-name: Provider Smoke Test
+name: Provider Search Test
 
 on:
   workflow_dispatch:
@@ -14,6 +14,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
+      - name: Resolve expected latest release tag
+        id: expected
+        shell: bash
+        run: |
+          tag="$(curl -fsSL https://api.github.com/repos/openai/codex-action/releases/latest | jq -r .tag_name)"
+          printf 'tag=%s\n' "$tag" >> "$GITHUB_OUTPUT"
+
       - name: Run Codex against custom Responses endpoint
         id: run_codex
         uses: openai/codex-action@v1
@@ -22,13 +29,18 @@ jobs:
           responses-api-endpoint: https://sub.jlypx.de/v1/responses
           model: gpt-5.4-mini
           sandbox: read-only
+          codex-args: '["-c", "web_search=\"live\""]'
           prompt: |
-            Reply with exactly: pong
+            Search the web for the latest GitHub release tag of openai/codex-action.
+            Reply with exactly the tag text and nothing else.
 
       - name: Assert final message
         shell: bash
         env:
+          EXPECTED_TAG: ${{ steps.expected.outputs.tag }}
           FINAL_MESSAGE: ${{ steps.run_codex.outputs.final-message }}
         run: |
           printf 'Final message: %s\n' "$FINAL_MESSAGE"
-          test "$FINAL_MESSAGE" = "pong"
+          printf 'Expected tag: %s\n' "$EXPECTED_TAG"
+          test -n "$EXPECTED_TAG"
+          test "$FINAL_MESSAGE" = "$EXPECTED_TAG"
